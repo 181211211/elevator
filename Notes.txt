@@ -1,0 +1,21 @@
+
+		
+	The dispatcher sends commands to elevators - each elevator has command queues
+elevator level statuses - doors open or doors closed, moving or stopped if moving direction 
+present position 
+destination queue
+	After every call, the entire state of the elevator system is sent to the elevator optimizer. 
+This returns what elevator to send to the request. Each request has an id made up of build_id, floor_id
+Multiple requests will still only apply to one elevator system state. 
+
+In the first place, with the dispatcher function, we can check if someone has called the elevator, and checks at which floor its the call.
+
+Next, an elevator will be selected for going to the call and after that, the elevator is put into a queue, so he doesn't just get all the calls and doesn't override them.
+
+Then the elevator closes its doors and goes to the floor where it's called after he reaches the floor he stops and waits for a button to be pressed inside the elevator.
+
+After waiting for the doors to be closed he moves to the floor where the passenger wanted to go to.
+
+For every state that the elevator is(Open, Closed, Stoped) I attributed a color to represent what is happening. Red is for idle, green is for moving and gray is for closing doors.
+	
+Unfortunately, I wanted to have a display to indicate at what floors the elevators are, in which direction are they going, and their state, but I didn't manage to dit it.

@@ -1,0 +1,350 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<meta content="text/html;charset=utf-8" http-equiv="Content-Type">
+<meta content="utf-8" http-equiv="encoding">
+<link rel="stylesheet" type="text/css" href="main.css">
+<script>
+
+
+var ELEVATORS = 2;
+var FLOORS = 6;
+var BOTTOMFLOOR = 0; 
+var LOOPSECS = 1; 
+var SEPARATOR=":";
+var DOORSOPEN=7; //doors remain open for 7 secs
+var OPEN=1;
+var CLOSED=0;
+var STOPPED=0;
+var sysStatus = 0;
+var callQueue = new Array();
+var elevatorQueue = new Array();
+var UP = 1;
+var DOWN = -1;
+var STOPPED = 0;
+
+let display = document.querySelector(".display");
+
+ 
+    elevator.style.offsetTop = floors[0].offsetTop + "px";
+
+function changeColor(elevator,floor,color){
+
+        var cell = elevator.toString().concat(SEPARATOR)+floor.toString();
+        if (document.getElementById(cell).getAttribute("style", "background:")=="background:".concat(color)){
+            return;
+         }
+         document.getElementById(cell).setAttribute("style", "background:".concat(color));
+}
+
+
+function initialize(floors,elevators){
+     document.write("<table border='1' cellspacing='2' cellpadding='2' id='data-floor'>");
+       
+      for (var i=floors+1;i>=0;i--){ 
+         document.write("<tr id='row"+i.toString()+"'>");
+         for (var j=1;j<=elevators+1;j++) { 
+            if (i<floors+1 && j==1){
+                   
+                   document.write("<td>"+" <input type='button' onclick=callElevator("+i.toString()+") id="
+                    +i.toString()+" value='call'/></td>");  
+               }else{
+                if (i==floors+1 && j>1) { 
+                    var flrBtnStr="<td width='200pt' name='flrBtns'>";
+                    for (var k=1;k<floors+1;k++){
+                        flrBtnStr=flrBtnStr.concat("<input type='button' onclick=elevatorQueuePush("
+                            +"'"+(j-2).toString()+SEPARATOR+k.toString()+"'); class='flrBtn' id='reqFlr"
+                            +(j-2).toString()+SEPARATOR+k.toString()+"' value='"+k.toString()+"' disabled ></input>");
+                        }
+                       flrBtnStr=flrBtnStr.concat("</td>");
+                       document.write(flrBtnStr);
+                 } else {
+                    document.write("<td width='80pt' id="+(j-2).toString()+SEPARATOR+i.toString()+">"+i.toString()+"</td>");
+                }
+            }
+         }
+        document.write("</tr>");
+        } 
+     document.write("</table>");
+}
+
+function updateWaitingFloor(floor) {
+
+}
+
+function randomFromTo(from, to){
+       return Math.floor(Math.random() * (to - from + 1) + from);
+    }
+
+function returnElevator(floor){
+    return randomFromTo(0,ELEVATORS-1) ; 
+}
+
+function sign(number){
+    return number?number<0?-1:1:0;
+}
+
+function moveElevator(elevator,building) {
+var ftper=0;
+var direction=STOPPED;
+var incValue=0.0;
+var prevPos=0.0;
+var floorSpace=building.building.floorSpace;
+
+        ftper = building.building.elevators[elevator].ftperSec;
+        direction = building.building.elevators[elevator].direction;
+        incValue = 1/(sign(direction)*(floorSpace/ftper));
+        
+            if (building.building.elevators[elevator].position <= FLOORS && building.building.elevators[elevator].position >= BOTTOMFLOOR) {
+                 //update the position
+             if (direction!=STOPPED) {
+                 building.building.elevators[elevator].position += incValue;
+                 building.building.elevators[elevator].position = (Math.round(building.building.elevators[elevator].position*100))/100
+                if (direction>STOPPED){
+                    console.log("+++");
+                    console.log(building.building.elevators[elevator].position);
+                    console.log("+++");
+                }else {
+                    console.log("---");
+                    console.log(building.building.elevators[elevator].position);
+                    console.log("---");
+                }
+            }
+          }
+     }
+ 
+
+
+function enableButtons(elevator){
+    var elevBtn = "reqFlr"; 
+    for (var j=1;j<=FLOORS;j++){
+        elevBtn = "reqFlr"+elevator.toString()+SEPARATOR+j.toString();
+        document.getElementById(elevBtn).disabled=false; 
+    }
+}
+
+function disableButtons(elevator){
+    var elevBtn = "reqFlr"; 
+    for (var j=1;j<=FLOORS;j++){
+        elevBtn = "reqFlr"+elevator.toString()+SEPARATOR+j.toString();
+        document.getElementById(elevBtn).disabled=true; 
+    }
+}
+
+function openDoors(elevator,building) {
+    if (building.building.elevators[elevator].doors==CLOSED){
+        console.log("Opening doors");
+        building.building.elevators[elevator].doors=OPEN;
+    }
+}
+
+function doorsStatus(elevator,building) {
+    return building.building.elevators[elevator].doors;
+}
+
+function closeDoors(elevator,building) {
+    console.log("Closing doors");
+   
+    changeColor(elevator,getEleFloor(elevator,building),"GREY");
+    setTimeout(function() { building.building.elevators[elevator].doors=0; }, 5000);
+    
+}
+
+function level(elevator,building){
+    console.log('Leveling....');
+  
+    var direction = building.building.elevators[elevator].direction;
+    var distance = sign(direction)*Math.abs(building.building.elevators[elevator].position - building.building.elevators[elevator].DestQueue[0]);
+    while (Math.abs(distance)>.001){
+        distance = distance / 2;
+        building.building.elevators[elevator].position += distance;
+        console.log('Leveling....'.concat(building.building.elevators[elevator].position.toString()) ) ;
+    }
+    building.building.elevators[elevator].position=Math.round(building.building.elevators[elevator].position);
+}
+
+function stop(elevator,building){
+    console.log("**poping off**");
+    building.building.elevators[elevator].direction=STOPPED; 
+    if (building.building.elevators[elevator].DestQueue.length>0){
+        
+        building.building.elevators[elevator].DestQueue.shift()
+        
+    }
+}
+
+function setDirection(elevator,building) {
+           if (building.building.elevators[elevator].DestQueue.length==0){
+               building.building.elevators[elevator].direction=STOPPED; 
+           }else {
+            if (Math.abs(building.building.elevators[elevator].position - building.building.elevators[elevator].DestQueue[0]) <= .5) {
+                
+                level(elevator,building);
+                stop(elevator,building);
+            } else if((building.building.elevators[elevator].position - building.building.elevators[elevator].DestQueue[0]) < -.1){
+                console.log("**need to move up**");
+                building.building.elevators[elevator].direction=UP;
+              }else if ( (building.building.elevators[elevator].position - building.building.elevators[elevator].DestQueue[0]) > .1){
+                console.log("**need to move down**");
+                building.building.elevators[elevator].direction=DOWN;
+              }else {
+               
+              }
+           }
+
+      return building.building.elevators[elevator].direction;
+}
+
+function getDirection(elevator,building) {
+        return building.building.elevators[elevator].direction;
+}
+
+function getEleFloor(elevator,building) {
+    return Math.floor(building.building.elevators[elevator].position);
+}
+
+function createBuilding(){
+    var building = { 
+           "building": {
+           "id": 1,"floorSpace":30,
+           "elevators":[]
+      }  
+     };
+    
+     for (var k=1;k<=ELEVATORS;k++) {
+        building.building.elevators.push({"id":k,"doors":0,"ftperSec":14,"capacity":6,"direction":0,"position":0, "DestQueue":[] });
+        building.building.elevators.push({"id":k,"doors":0,"ftperSec":14,"capacity":6,"direction":0,"position":6, "DestQueue":[] });
+     }
+     
+     return building;
+
+}
+
+function checkForDest(elevator,building){
+    return (building.building.elevators[elevator].DestQueue.length>0)
+}
+
+function callElevator(floor) {
+   
+     
+    callQueue.push(floor); 
+    callQueue.sort(function(a,b){return a-b});
+    updateWaitingFloor(floor);
+}
+
+function elevatorQueuePush(req){
+    elevatorQueue.push(req);
+}
+
+function reqFlr(floor,building) {
+      
+            var data = floor.split(SEPARATOR);
+            var elevator = Number(data[0]);
+            var flr = Number(data[1]);
+          
+            if (building.building.elevators[elevator].DestQueue.length < building.building.elevators[elevator].capacity) {
+                console.log('Adding dest');
+                building.building.elevators[elevator].DestQueue.push(flr);
+            }
+        }
+
+
+function sortElevator(elevator,building){
+    if (building.building.elevators[elevator].direction == UP){
+    building.building.elevators[elevator].DestQueue.sort(function(a,b){return a-b});
+    } else {
+    building.building.elevators[elevator].DestQueue.sort(function(a,b){return b-a});
+    }
+}
+
+function dispatcher(building) {
+
+   
+   var floor = 0;
+   var elevator = 0;
+   var direction = 0;
+   var req="";
+   
+   while (callQueue.length>0 || elevatorQueue.length>0) { 
+            sysStatus=1;
+            if (callQueue.length>0) {
+                floor = callQueue.pop(); t
+                elevator = returnElevator(floor,building); 
+                
+                enableButtons(elevator);
+                reqFlr(elevator.toString()+SEPARATOR+floor.toString(),building);
+            }
+            
+            if (elevatorQueue.length>0){
+                req = elevatorQueue.pop();
+                reqFlr(req,building);
+            }
+        } 
+
+   
+   for (var j=0;j<ELEVATORS;j++) {
+       sortElevator(j,building);
+       changeColor(j,getEleFloor(j,building),"WHITE");
+        
+        if (setDirection(j,building)!=0) {
+
+            if (doorsStatus(j,building)==OPEN) {
+                closeDoors(j,building);
+            }
+            
+            if (doorsStatus(j,building)==CLOSED) { 
+               console.log('Moving....');
+               moveElevator(j,building);
+               changeColor(j,getEleFloor(j,building),"GREEN");
+           }
+        }   
+          else { 
+            changeColor(j,getEleFloor(j,building),'RGB(255,0,0)'); // Red
+            openDoors(j,building);
+            }
+          }
+           
+    setTimeout(function() { dispatcher(building); }, 500);
+    // updateDisplay();
+
+    //         function updateDisplay() {
+    //     display.innerHTML = [
+    //         "Ground Floor",
+    //         "First Floor",
+    //         "Second Floor",
+    //         "Third Floor",
+    //         "Forth Floor",
+    //         "Fift Floor",
+    //         "Sixt Floor",
+    //     "Seventh Floor"][
+    //         parseInt(getEleFloor.getElementById("data-floor"))] + " " + (
+    //             floors[0] != null ?
+    //                 floors[0].offsetTop < floorSpace.offsetTop ?
+    //                     '<br />Going Up' :
+    //                     '<br />Going down' :
+    //                 '');
+    //} 
+}
+
+</script>
+</head>
+<body onload="dispatcher(createBuilding())">
+
+<div id="container" style="display: table;  margin: 0 auto;">
+
+<div id="header">
+    <div class="handle">
+        <div class="display">
+
+        </div>
+    </div>
+<script>initialize(FLOORS,ELEVATORS);</script>
+
+</div> 
+
+</div> 
+
+</body>
+
+</html>
+
